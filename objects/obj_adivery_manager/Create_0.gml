@@ -13,14 +13,11 @@ global.adivery_placement_appopen = "f83ece42-78b8-4bc9-a341-98ba02b0578d";
 adivery_init(global.adivery_app_id);
 
 // Prepare ads
-adivery_prepare_interstitial(global.adivery_placement_interstitial);
- // Extra debug visibility for rewarded prepare flow
- show_debug_message("Adivery: preparing rewarded start -> " + string(global.adivery_placement_rewarded));
- adivery_prepare_rewarded(global.adivery_placement_rewarded);
- show_debug_message("Adivery: preparing rewarded invoked");
-adivery_prepare_app_open(global.adivery_placement_appopen);
-// Banners are created on demand. Example:
-// adivery_banner_show(global.adivery_placement_banner, "BANNER", 1);
+//adivery_prepare_interstitial(global.adivery_placement_interstitial);
+// Extra debug visibility for rewarded prepare flow
+show_debug_message("Adivery: preparing rewarded start -> " + string(global.adivery_placement_rewarded));
+adivery_prepare_rewarded(global.adivery_placement_rewarded);
+show_debug_message("Adivery: preparing rewarded invoked");
 
 // State
 shown_interstitial = false;
