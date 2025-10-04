@@ -25,7 +25,7 @@
   },
   "name":"Adivery",
   "resources":[
-    {"id":{"name":"adivery","path":"extensions/Adivery/adivery.yy",},},
+    {"id":{"name":"Adivery","path":"extensions/Adivery/Adivery.yy",},},
     {"id":{"name":"obj_adivery_manager","path":"objects/obj_adivery_manager/obj_adivery_manager.yy",},},
     {"id":{"name":"Room1","path":"rooms/Room1/Room1.yy",},},
   ],
