@@ -20,6 +20,9 @@ public class AdiveryGM {
     private static String lastEvent = "";
     private static Object bannerView = null;
     private static Object globalListenerProxy = null;
+    private static volatile boolean awaitingResume = false;
+    private static String currentAdPlacement = null;
+    private static boolean lifecycleRegistered = false;
 
     private static void setLastEvent(String type, String placementId, String message, Boolean rewarded) {
         StringBuilder sb = new StringBuilder();
@@ -132,62 +135,157 @@ public class AdiveryGM {
         return m.invoke(null, args);
     }
 
+    private static void uiShowAd(final Activity act, final String placementId) {
+        try {
+            if (act != null) {
+                act.runOnUiThread(new Runnable() {
+                    @Override public void run() {
+                        try {
+                            try {
+                                invokeAdivery("showAd", new Class[]{Activity.class, String.class}, act, placementId);
+                            } catch (NoSuchMethodException nsme) {
+                                invokeAdivery("showAd", new Class[]{String.class}, placementId);
+                            }
+                            setLastEvent("show_called", placementId, null, null);
+                        } catch (Throwable t) {
+                            Log.e(TAG, "show(UI) failed", t);
+                            setLastEvent("show_error", placementId, String.valueOf(t.getMessage()), null);
+                        }
+                    }
+                });
+            } else {
+                try {
+                    invokeAdivery("showAd", new Class[]{String.class}, placementId);
+                    setLastEvent("show_called", placementId, null, null);
+                } catch (Throwable t) {
+                    Log.e(TAG, "show(no-UI) failed", t);
+                    setLastEvent("show_error", placementId, String.valueOf(t.getMessage()), null);
+                }
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "uiShowAd dispatch failed", t);
+            setLastEvent("show_error", placementId, String.valueOf(t.getMessage()), null);
+        }
+    }
+
+    private static Object makeListenerProxy(final Class<?> listenerIface) throws Exception {
+        java.lang.reflect.InvocationHandler handler = new java.lang.reflect.InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) {
+                try {
+                    String m = method.getName();
+                    String placement = null;
+                    String message = null;
+                    Boolean rewarded = null;
+                    if (args != null) {
+                        for (Object a : args) {
+                            if (a instanceof String) {
+                                if (placement == null) placement = (String) a; else if (message == null) message = (String) a;
+                            } else if (a instanceof Boolean) {
+                                rewarded = (Boolean) a;
+                            } else if (a instanceof Throwable) {
+                                if (message == null) message = ((Throwable) a).getMessage();
+                            }
+                        }
+                    }
+                    Log.d(TAG, "listener(" + listenerIface.getSimpleName() + "): method=" + m + ", placement=" + placement + ", rewarded=" + rewarded + ", message=" + message);
+                    setLastEvent(m, placement, message, rewarded);
+                } catch (Throwable ignored) {}
+                return null;
+            }
+        };
+        return java.lang.reflect.Proxy.newProxyInstance(getAdiveryClass().getClassLoader(), new Class[]{listenerIface}, handler);
+    }
+
     private static synchronized void ensureGlobalListener(boolean enable) {
         try {
             Class<?> adiveryClass = getAdiveryClass();
-            Class<?> listenerIface = Class.forName("com.adivery.sdk.AdiveryListener");
+            Class<?>[] listenerIfaces = new Class<?>[] {
+                    Class.forName("com.adivery.sdk.AdiveryListener"),
+                    // Some SDK versions use AdiveryAdListener
+                    tryClass("com.adivery.sdk.AdiveryAdListener")
+            };
 
             if (enable) {
                 if (globalListenerProxy == null) {
-                    java.lang.reflect.InvocationHandler handler = new java.lang.reflect.InvocationHandler() {
-                        @Override
-                        public Object invoke(Object proxy, Method method, Object[] args) {
+                    // Try to attach any known global-listener method for either iface
+                    for (Class<?> li : listenerIfaces) {
+                        if (li == null) continue;
+                        try {
+                            Object proxy = makeListenerProxy(li);
+                            // Preferred: addGlobalListener(iface)
                             try {
-                                String m = method.getName();
-                                String placement = null;
-                                String message = null;
-                                Boolean rewarded = null;
-                                if (args != null) {
-                                    for (Object a : args) {
-                                        if (a instanceof String) {
-                                            // Prefer first String as placement id unless we already set it
-                                            if (placement == null) placement = (String) a;
-                                            else if (message == null) message = (String) a;
-                                        } else if (a instanceof Boolean) {
-                                            rewarded = (Boolean) a;
-                                        } else if (a instanceof Throwable) {
-                                            if (message == null) message = ((Throwable) a).getMessage();
-                                        }
+                                Method add = adiveryClass.getMethod("addGlobalListener", li);
+                                add.invoke(null, proxy);
+                                globalListenerProxy = proxy;
+                                break;
+                            } catch (Throwable ignored) {}
+                            // Fallback: any static method with single param li and name containing listener/callback
+                            for (Method m : adiveryClass.getMethods()) {
+                                if ((m.getParameterTypes().length == 1) && m.getParameterTypes()[0] == li) {
+                                    String n = m.getName().toLowerCase();
+                                    if (n.contains("listener") || n.contains("callback")) {
+                                        try { m.invoke(null, proxy); globalListenerProxy = proxy; break; } catch (Throwable ignored2) {}
                                     }
                                 }
-                                Log.d(TAG, "listener: method=" + m
-                                        + ", placement=" + placement
-                                        + ", rewarded=" + rewarded
-                                        + ", message=" + message);
-                                setLastEvent(m, placement, message, rewarded);
-                            } catch (Throwable ignored) {}
-                            return null;
-                        }
-                    };
-                    globalListenerProxy = java.lang.reflect.Proxy.newProxyInstance(
-                            adiveryClass.getClassLoader(),
-                            new Class[]{listenerIface},
-                            handler
-                    );
-                    Method add = adiveryClass.getMethod("addGlobalListener", listenerIface);
-                    add.invoke(null, globalListenerProxy);
+                            }
+                            if (globalListenerProxy != null) break;
+                        } catch (Throwable ignored) {}
+                    }
                 }
             } else {
                 if (globalListenerProxy != null) {
-                    try {
-                        Method rm = adiveryClass.getMethod("removeGlobalListener", listenerIface);
-                        rm.invoke(null, globalListenerProxy);
-                    } catch (Throwable ignored) {}
+                    try { Method rm = adiveryClass.getMethod("removeGlobalListener", Class.forName("com.adivery.sdk.AdiveryListener")); rm.invoke(null, globalListenerProxy); } catch (Throwable ignored) {}
                     globalListenerProxy = null;
                 }
             }
         } catch (Throwable t) {
             Log.e(TAG, "ensureGlobalListener failed", t);
+        }
+    }
+
+    private static Class<?> tryClass(String name) {
+        try { return Class.forName(name); } catch (Throwable ignored) { return null; }
+    }
+
+    private static void attachPerPlacementListener(String placementId) {
+        try {
+            Class<?> adiveryClass = getAdiveryClass();
+            Class<?>[] listenerIfaces = new Class<?>[] {
+                    tryClass("com.adivery.sdk.AdiveryListener"),
+                    tryClass("com.adivery.sdk.AdiveryAdListener")
+            };
+            boolean attached = false;
+            for (Class<?> li : listenerIfaces) {
+                if (li == null) continue;
+                try {
+                    Object proxy = makeListenerProxy(li);
+                    for (Method m : adiveryClass.getMethods()) {
+                        Class<?>[] pts = m.getParameterTypes();
+                        if (pts.length == 2) {
+                            boolean hasString = (pts[0] == String.class) || (pts[1] == String.class);
+                            boolean hasListener = (pts[0] == li) || (pts[1] == li);
+                            if (hasString && hasListener) {
+                                String n = m.getName().toLowerCase();
+                                if (n.contains("listener") || n.contains("callback")) {
+                                    try {
+                                        if (pts[0] == String.class && pts[1] == li) m.invoke(null, placementId, proxy);
+                                        else if (pts[0] == li && pts[1] == String.class) m.invoke(null, proxy, placementId);
+                                        else continue;
+                                        attached = true;
+                                        setLastEvent("listener_attached", placementId, m.getName(), null);
+                                        break;
+                                    } catch (Throwable ignored) {}
+                                }
+                            }
+                        }
+                    }
+                    if (attached) break;
+                } catch (Throwable ignored) {}
+            }
+            if (!attached) Log.d(TAG, "No per-placement listener method found");
+        } catch (Throwable t) {
+            Log.e(TAG, "attachPerPlacementListener failed", t);
         }
     }
 
@@ -205,6 +303,7 @@ public class AdiveryGM {
         try {
             invokeAdivery("configure", new Class[]{Application.class, String.class}, getApplication(), appId);
             if (callbacksEnabled) ensureGlobalListener(true);
+            registerLifecycleCallbacks();
             return 1;
         } catch (Throwable t) {
             Log.e(TAG, "init failed", t);
@@ -220,6 +319,7 @@ public class AdiveryGM {
 
     public static double adivery_prepare_interstitial(String placementId) {
         try {
+            attachPerPlacementListener(placementId);
             invokeAdivery("prepareInterstitialAd", new Class[]{Context.class, String.class}, getContext(), placementId);
             return 1;
         } catch (Throwable t) {
@@ -260,8 +360,12 @@ public class AdiveryGM {
 
     public static double adivery_show(String placementId) {
         try {
-            invokeAdivery("showAd", new Class[]{String.class}, placementId);
-            setLastEvent("show_called", placementId, null, null);
+            // Route show to UI thread and try both signatures
+            Activity act = null;
+            try { act = getActivity(); } catch (Throwable ignored) {}
+            currentAdPlacement = placementId;
+            awaitingResume = true;
+            uiShowAd(act, placementId);
             return 1;
         } catch (Throwable t) {
             Log.e(TAG, "show failed", t);
@@ -271,9 +375,26 @@ public class AdiveryGM {
 
     public static double adivery_show_app_open(String placementId) {
         try {
-            invokeAdivery("showAppOpenAd", new Class[]{Activity.class, String.class}, getActivity(), placementId);
-            setLastEvent("appopen_show_called", placementId, null, null);
-            return 1;
+            final Activity act = getActivity();
+            if (act != null) {
+                act.runOnUiThread(new Runnable() {
+                    @Override public void run() {
+                        try {
+                            invokeAdivery("showAppOpenAd", new Class[]{Activity.class, String.class}, act, placementId);
+                            setLastEvent("appopen_show_called", placementId, null, null);
+                        } catch (Throwable t) {
+                            Log.e(TAG, "show_app_open(UI) failed", t);
+                            setLastEvent("appopen_show_error", placementId, String.valueOf(t.getMessage()), null);
+                        }
+                    }
+                });
+                return 1;
+            } else {
+                // Fallback without Activity (less reliable)
+                invokeAdivery("showAppOpenAd", new Class[]{Activity.class, String.class}, null, placementId);
+                setLastEvent("appopen_show_called", placementId, null, null);
+                return 1;
+            }
         } catch (Throwable t) {
             Log.e(TAG, "show_app_open failed", t);
             return 0;
@@ -326,6 +447,48 @@ public class AdiveryGM {
         String le = lastEvent;
         lastEvent = "";
         return le == null ? "" : le;
+    }
+
+    private static synchronized void registerLifecycleCallbacks() {
+        if (lifecycleRegistered) return;
+        try {
+            final Application app = getApplication();
+            if (app == null) return;
+            app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+                @Override public void onActivityCreated(Activity activity, android.os.Bundle bundle) {}
+                @Override public void onActivityStarted(Activity activity) {}
+                @Override public void onActivityResumed(Activity activity) {
+                    if (awaitingResume && currentAdPlacement != null) {
+                        setLastEvent("onAdClosed", currentAdPlacement, null, null);
+                        awaitingResume = false;
+                        currentAdPlacement = null;
+                    }
+                }
+                @Override public void onActivityPaused(Activity activity) {}
+                @Override public void onActivityStopped(Activity activity) {}
+                @Override public void onActivitySaveInstanceState(Activity activity, android.os.Bundle bundle) {}
+                @Override public void onActivityDestroyed(Activity activity) {}
+            });
+            lifecycleRegistered = true;
+        } catch (Throwable ignored) {}
+    }
+
+    // Simple Android toast message for on-device user feedback
+    public static double adivery_toast(final String message) {
+        try {
+            final Activity act = getActivity();
+            if (act != null) {
+                act.runOnUiThread(new Runnable() {
+                    @Override public void run() {
+                        try {
+                            android.widget.Toast.makeText(act, (message == null ? "" : message), android.widget.Toast.LENGTH_SHORT).show();
+                        } catch (Throwable ignored) {}
+                    }
+                });
+                return 1;
+            }
+        } catch (Throwable ignored) {}
+        return 0;
     }
 
     // GDPR dialog setup (opens the SDK GDPR dialog)
