@@ -1,0 +1,17 @@
+Failed to add resource 'extensions/Adivery/adivery.yy' to storage on user's project.
+Failed Loading Project Error: Failed to add resource 'extensions/Adivery/adivery.yy' to storage on user's project.
+Unhandled exception. System.Reflection.TargetInvocationException: Exception has been thrown by the target of an invocation.
+ ---> System.NullReferenceException: Object reference not set to an instance of an object.
+   at GMAssetCompiler.Loader.LoadGMS2CreateAssets(String _filename)
+   at GMAssetCompiler.Loader.Load(String _name)
+   at GMAssetCompiler.Program.GetAssetsFile(List`1 _args)
+   at GMAssetCompiler.Program.Main(String[] _args)
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   --- End of inner exception stack trace ---
+   at System.Reflection.MethodBaseInvoker.InvokeDirectByRefWithFewArgs(Object obj, Span`1 copyOfArgs, BindingFlags invokeAttr)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+   at System.Reflection.MethodBase.Invoke(Object obj, Object[] parameters)
+   at Igor.Program.ExecuteAssetCompiler(String _args)
+   at Igor.Program.SetupBuildEnv(String _options, String _project, String _runtimeLocation, String _cache, String _temp, String _user, String _outputFilename, String _targetFilename, String _debuggerPort, Boolean _launchPackage)
+   at Igor.Program.Main(String[] args)
