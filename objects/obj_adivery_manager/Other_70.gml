@@ -41,7 +41,7 @@ if (!is_undefined(_map)) {
             if (_type == "onAdShown") show_debug_message("Adivery: Rewarded SHOWN");
             if (_type == "onAdClosed") show_debug_message("Adivery: Rewarded CLOSED");
             if (_type == "onAdError") show_debug_message("Adivery: Rewarded ERROR -> " + _message);
-            if (_type == "onRewarded") show_debug_message("Adivery: Reward GRANTED");
+            if (_type == "onRewarded") show_message_async("Thanks! Your reward has been granted.");
         }
     }
 }
