@@ -36,7 +36,7 @@ var bh_x1 = x0, bh_y1 = b_y2 + 8, bh_x2 = x0 + btn_w, bh_y2 = bh_y1 + btn_h;
 draw_set_color(make_color_rgb(40,40,40));
 draw_rectangle(bh_x1, bh_y1, bh_x2, bh_y2, false);
 draw_set_color(c_white);
-draw_text(bh_x1 + 8, bh_y1 + 6, "Hide Banner");
+draw_text(bh_x1 + 8, bh_y1 + 6, "App Open"); // Hide Banner
 
 // Click handling (room-space coordinates)
 if (mouse_check_button_pressed(mb_left)) {
@@ -60,6 +60,7 @@ if (mouse_check_button_pressed(mb_left)) {
         adivery_banner_show(global.adivery_placement_banner, "BANNER", 1);
     }
     if (point_in_rectangle(mouse_x, mouse_y, bh_x1, bh_y1, bh_x2, bh_y2)) {
-        adivery_banner_hide();
+        // adivery_banner_hide();
+		adivery_prepare_app_open(global.adivery_placement_appopen);
     }
 }
