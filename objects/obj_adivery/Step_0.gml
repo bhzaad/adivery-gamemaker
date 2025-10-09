@@ -1,3 +1,5 @@
+/*
+
 // Poll events (optional)
 var _ev = adivery_get_last_event();
 if (_ev != "") {

@@ -26,7 +26,7 @@
   "name":"Adivery",
   "resources":[
     {"id":{"name":"Adivery","path":"extensions/Adivery/Adivery.yy",},},
-    {"id":{"name":"obj_adivery_manager","path":"objects/obj_adivery_manager/obj_adivery_manager.yy",},},
+    {"id":{"name":"obj_adivery","path":"objects/obj_adivery/obj_adivery.yy",},},
     {"id":{"name":"Room1","path":"rooms/Room1/Room1.yy",},},
   ],
   "resourceType":"GMProject",
