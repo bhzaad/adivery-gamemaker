@@ -3,7 +3,7 @@
   "%Name":"Adivery",
   "androidactivityinject":"",
   "androidclassname":"AdiveryGM",
-  "androidcodeinjection":"",
+  "androidcodeinjection":"<YYAndroidManifestApplicationInject>\r\n    <uses-library android:name=\"android.test.runner\" tools:node=\"remove\"/>\r\n</YYAndroidManifestApplicationInject>",
   "androidinject":"",
   "androidmanifestinject":"",
   "androidPermissions":[
