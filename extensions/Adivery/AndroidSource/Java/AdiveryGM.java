@@ -1,4 +1,5 @@
-package com.company.game;
+// GameMaker replaces this at build time with the value from options_android.yy (domain.company.product)
+package ${YYAndroidPackageName};
 
 import android.app.Activity;
 import android.app.Application;
