@@ -20,7 +20,7 @@
   "exportToGame":true,
   "extensionVersion":"1.0.0",
   "files":[
-    {"$GMExtensionFile":"","%Name":"","constants":[],"copyToTargets":8,"filename":"adivery.ext","final":"","functions":[
+    {"$GMExtensionFile":"v1","%Name":"","constants":[],"copyToTargets":8,"filename":"adivery.ext","final":"","functions":[
         {"$GMExtensionFunction":"","%Name":"adivery_set_logging","argCount":1,"args":[2,],"documentation":"","externalName":"adivery_set_logging","help":"adivery_set_logging(enabled)","hidden":false,"kind":11,"name":"adivery_set_logging","resourceType":"GMExtensionFunction","resourceVersion":"2.0","returnType":2,},
         {"$GMExtensionFunction":"","%Name":"adivery_init","argCount":1,"args":[1,],"documentation":"","externalName":"adivery_init","help":"adivery_init(app_id)","hidden":false,"kind":11,"name":"adivery_init","resourceType":"GMExtensionFunction","resourceVersion":"2.0","returnType":2,},
         {"$GMExtensionFunction":"","%Name":"adivery_callbacks_enable","argCount":1,"args":[2,],"documentation":"","externalName":"adivery_callbacks_enable","help":"adivery_callbacks_enable(enable)","hidden":false,"kind":11,"name":"adivery_callbacks_enable","resourceType":"GMExtensionFunction","resourceVersion":"2.0","returnType":2,},
@@ -37,23 +37,7 @@
         {"$GMExtensionFunction":"","%Name":"adivery_setup_gdpr","argCount":-1,"args":[],"documentation":"","externalName":"adivery_setup_gdpr","help":"adivery_setup_gdpr()","hidden":false,"kind":11,"name":"adivery_setup_gdpr","resourceType":"GMExtensionFunction","resourceVersion":"2.0","returnType":2,},
         {"$GMExtensionFunction":"","%Name":"adivery_banner_show","argCount":3,"args":[1,1,2,],"documentation":"","externalName":"adivery_banner_show","help":"adivery_banner_show(placement_id, size, positionBottom) // size=BANNER|LARGE_BANNER|MEDIUM_RECTANGLE|SMART_BANNER; positionBottom=1 for bottom, 0 for top","hidden":false,"kind":11,"name":"adivery_banner_show","resourceType":"GMExtensionFunction","resourceVersion":"2.0","returnType":2,},
         {"$GMExtensionFunction":"","%Name":"adivery_banner_hide","argCount":-1,"args":[],"documentation":"","externalName":"adivery_banner_hide","help":"adivery_banner_hide()","hidden":false,"kind":11,"name":"adivery_banner_hide","resourceType":"GMExtensionFunction","resourceVersion":"2.0","returnType":2,},
-      ],"init":"","kind":4,"name":"","order":[
-        {"name":"adivery_set_logging","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_init","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_callbacks_enable","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_prepare_interstitial","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_prepare_rewarded","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_prepare_app_open","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_show","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_show_app_open","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_is_loaded","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_set_user_id","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_get_vast_url","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_is_vast_ready","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_get_last_event","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_banner_show","path":"extensions/Adivery/Adivery.yy",},
-        {"name":"adivery_banner_hide","path":"extensions/Adivery/Adivery.yy",},
-      ],"origname":"extensions\\Adivery\\adivery.ext","ProxyFiles":[],"resourceType":"GMExtensionFile","resourceVersion":"2.0","uncompress":false,"usesRunnerInterface":false,},
+      ],"init":"","kind":4,"name":"","origname":"extensions\\Adivery\\adivery.ext","ProxyFiles":[],"resourceType":"GMExtensionFile","resourceVersion":"2.0","uncompress":false,"usesRunnerInterface":false,},
   ],
   "gradleinject":"implementation fileTree(dir: 'libs', include: ['*.jar','*.aar'])\nimplementation 'org.jetbrains.kotlin:kotlin-stdlib:1.6.21'",
   "hasConvertedCodeInjection":true,
