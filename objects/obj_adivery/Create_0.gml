@@ -1,6 +1,9 @@
-// Adivery init
+/// @descr Adivery init
+// Disable verbose SDK logging for runtime builds
 adivery_set_logging(1);
 adivery_callbacks_enable(1);
+adivery_enable_logcat_reward_fallback(1); // Optional: enable debug-only logcat fallback to detect reward via SDK logs
+
 
 // Set your IDs here
 global.adivery_app_id = "0cb6fc5f-3412-43cc-bc00-9a441619e105";

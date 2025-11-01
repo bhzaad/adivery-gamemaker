@@ -24,6 +24,9 @@ public class AdiveryGM {
     private static volatile boolean awaitingResume = false;
     private static String currentAdPlacement = null;
     private static boolean lifecycleRegistered = false;
+    private static volatile boolean logcatFallbackEnabled = false;
+    private static volatile Thread logcatThread = null;
+    private static String lastShownPlacement = null;
 
     private static void setLastEvent(String type, String placementId, String message, Boolean rewarded) {
         StringBuilder sb = new StringBuilder();
@@ -190,6 +193,10 @@ public class AdiveryGM {
                         }
                     }
                     Log.d(TAG, "listener(" + listenerIface.getSimpleName() + "): method=" + m + ", placement=" + placement + ", rewarded=" + rewarded + ", message=" + message);
+                    // If SDK reports close with rewarded=true, also emit an explicit onRewarded event
+                    if ("onAdClosed".equals(m) && Boolean.TRUE.equals(rewarded) && placement != null) {
+                        try { setLastEvent("onRewarded", placement, null, true); } catch (Throwable ignored) {}
+                    }
                     setLastEvent(m, placement, message, rewarded);
                 } catch (Throwable ignored) {}
                 return null;
@@ -365,6 +372,7 @@ public class AdiveryGM {
             Activity act = null;
             try { act = getActivity(); } catch (Throwable ignored) {}
             currentAdPlacement = placementId;
+            lastShownPlacement = placementId;
             awaitingResume = true;
             uiShowAd(act, placementId);
             return 1;
@@ -472,6 +480,52 @@ public class AdiveryGM {
             });
             lifecycleRegistered = true;
         } catch (Throwable ignored) {}
+    }
+
+    // Optional: watch logcat for SDK message "Adivery : post role REWARDED" as a fallback for reward detection
+    public static double adivery_enable_logcat_reward_fallback(double enable) {
+        boolean want = enable != 0;
+        logcatFallbackEnabled = want;
+        if (want) {
+            if (logcatThread == null || !logcatThread.isAlive()) {
+                logcatThread = new Thread(new Runnable() {
+                    @Override public void run() {
+                        Process proc = null;
+                        java.io.BufferedReader reader = null;
+                        try {
+                            // Filter to our tag if possible to reduce noise
+                            String[] cmd = new String[]{"logcat", "Adivery:D", "*:S"};
+                            proc = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+                            reader = new java.io.BufferedReader(new java.io.InputStreamReader(proc.getInputStream()));
+                            String line;
+                            while (logcatFallbackEnabled && (line = reader.readLine()) != null) {
+                                // Look for the exact phrase the user reported
+                                if (line.contains(" Adivery : post role REWARDED")) {
+                                    String placement = (currentAdPlacement != null ? currentAdPlacement : lastShownPlacement);
+                                    try { setLastEvent("onRewarded", placement, "logcat_fallback", true); } catch (Throwable ignored) {}
+                                }
+                            }
+                        } catch (Throwable t) {
+                            Log.w(TAG, "logcat reward fallback error", t);
+                        } finally {
+                            try { if (reader != null) reader.close(); } catch (Throwable ignored) {}
+                            if (proc != null) {
+                                try { proc.destroy(); } catch (Throwable ignored) {}
+                            }
+                        }
+                    }
+                }, "AdiveryGM-LogcatFallback");
+                try { logcatThread.setDaemon(true); } catch (Throwable ignored) {}
+                try { logcatThread.start(); } catch (Throwable ignored) {}
+            }
+        } else {
+            // Disable and stop thread on next read
+            if (logcatThread != null) {
+                try { logcatThread.interrupt(); } catch (Throwable ignored) {}
+                logcatThread = null;
+            }
+        }
+        return 1;
     }
 
     // Simple Android toast message for on-device user feedback

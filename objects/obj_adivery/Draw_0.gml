@@ -1,8 +1,6 @@
 // On-screen diagnostics for Adivery
 var x0 = 16; var y0 = 16; var dy = 18;
 draw_set_color(c_white);
-draw_text(x0, y0,    "Adivery Diagnostics"); y0 += dy;
-draw_text(x0, y0,    "App ID: " + string(global.adivery_app_id)); y0 += dy;
 draw_text(x0, y0,    "Interstitial ready: " + string(adivery_is_loaded(global.adivery_placement_interstitial))); y0 += dy;
 draw_text(x0, y0,    "Rewarded ready: " + string(adivery_is_loaded(global.adivery_placement_rewarded))); y0 += dy;
 draw_text(x0, y0,    "VAST ready: " + string(adivery_is_vast_ready())); y0 += dy;
