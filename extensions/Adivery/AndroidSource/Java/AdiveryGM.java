@@ -12,13 +12,19 @@ import android.view.ViewParent;
 import android.widget.FrameLayout;
 
 import java.lang.reflect.Method;
+import java.util.HashSet;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class AdiveryGM {
 
     private static final String TAG = "AdiveryGM";
 
     private static volatile boolean callbacksEnabled = false;
-    private static String lastEvent = "";
+    private static volatile String lastEvent = "";
     private static Object bannerView = null;
     private static Object globalListenerProxy = null;
     private static volatile boolean awaitingResume = false;
@@ -27,46 +33,22 @@ public class AdiveryGM {
     private static volatile boolean logcatFallbackEnabled = false;
     private static volatile Thread logcatThread = null;
     private static String lastShownPlacement = null;
+    private static final Set<String> placementListeners = new HashSet<String>();
+    private static long lastPrepareTimeMs = 0;
+    private static String lastPreparePlacement = null;
+    private static final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private static final Queue<String> eventQueue = new ConcurrentLinkedQueue<String>();
 
-    private static void setLastEvent(String type, String placementId, String message, Boolean rewarded) {
+    private static void setLastEvent(final String type, final String placementId, final String message, final Boolean rewarded) {
         StringBuilder sb = new StringBuilder();
         sb.append("type=").append(type);
         if (placementId != null) sb.append(";placement=").append(placementId);
         if (message != null) sb.append(";message=").append(message.replace(';', ':'));
         if (rewarded != null) sb.append(";rewarded=").append(rewarded ? "1" : "0");
         lastEvent = sb.toString();
+        eventQueue.offer(lastEvent);
 
-        try {
-            Class<?> runner = Class.forName("com.yoyogames.runner.RunnerJNILib");
-            int map = -1;
-            try {
-                map = (int) runner.getMethod("dsMapCreate").invoke(null);
-            } catch (NoSuchMethodException nsme1) {
-                try {
-                    map = (int) runner.getMethod("jCreateDsMap", Object.class, Object.class, Object.class, Object.class)
-                            .invoke(null, null, null, null, null);
-                } catch (NoSuchMethodException nsme2) {
-                }
-            }
-            if (map >= 0) {
-                try { runner.getMethod("dsMapAddString", int.class, String.class, String.class).invoke(null, map, "adivery_event", type); } catch (Throwable ignored) {}
-                if (placementId != null) {
-                    try { runner.getMethod("dsMapAddString", int.class, String.class, String.class).invoke(null, map, "placement", placementId); } catch (Throwable ignored) {}
-                }
-                if (message != null) {
-                    try { runner.getMethod("dsMapAddString", int.class, String.class, String.class).invoke(null, map, "message", message); } catch (Throwable ignored) {}
-                }
-                if (rewarded != null) {
-                    try { runner.getMethod("dsMapAddDouble", int.class, String.class, double.class).invoke(null, map, "rewarded", rewarded ? 1.0 : 0.0); } catch (Throwable ignored) {}
-                }
-                try {
-                    runner.getMethod("CreateAsynEventWithDSMap", int.class, int.class).invoke(null, map, 70);
-                } catch (NoSuchMethodException nsme3) {
-                    try { runner.getMethod("CreateAsynEventWithDSMap", int.class).invoke(null, map); } catch (Throwable ignored) {}
-                }
-            }
-        } catch (Throwable t) {
-        }
+        // Avoid calling RunnerJNILib from SDK callbacks. Poll adivery_get_last_event() from GML instead.
     }
 
     private static Activity getActivity() throws Exception {
@@ -192,7 +174,6 @@ public class AdiveryGM {
                             }
                         }
                     }
-                    Log.d(TAG, "listener(" + listenerIface.getSimpleName() + "): method=" + m + ", placement=" + placement + ", rewarded=" + rewarded + ", message=" + message);
                     // If SDK reports close with rewarded=true, also emit an explicit onRewarded event
                     if ("onAdClosed".equals(m) && Boolean.TRUE.equals(rewarded) && placement != null) {
                         try { setLastEvent("onRewarded", placement, null, true); } catch (Throwable ignored) {}
@@ -258,6 +239,9 @@ public class AdiveryGM {
 
     private static void attachPerPlacementListener(String placementId) {
         try {
+            synchronized (placementListeners) {
+                if (placementId != null && placementListeners.contains(placementId)) return;
+            }
             Class<?> adiveryClass = getAdiveryClass();
             Class<?>[] listenerIfaces = new Class<?>[] {
                     tryClass("com.adivery.sdk.AdiveryListener"),
@@ -281,6 +265,9 @@ public class AdiveryGM {
                                         else if (pts[0] == li && pts[1] == String.class) m.invoke(null, proxy, placementId);
                                         else continue;
                                         attached = true;
+                                        synchronized (placementListeners) {
+                                            if (placementId != null) placementListeners.add(placementId);
+                                        }
                                         setLastEvent("listener_attached", placementId, m.getName(), null);
                                         break;
                                     } catch (Throwable ignored) {}
@@ -309,8 +296,19 @@ public class AdiveryGM {
 
     public static double adivery_init(String appId) {
         try {
-            invokeAdivery("configure", new Class[]{Application.class, String.class}, getApplication(), appId);
-            if (callbacksEnabled) ensureGlobalListener(true);
+            final Application app = getApplication();
+            final String id = appId;
+            worker.execute(new Runnable() {
+                @Override public void run() {
+                    try {
+                        invokeAdivery("configure", new Class[]{Application.class, String.class}, app, id);
+                        if (callbacksEnabled) ensureGlobalListener(true);
+                    } catch (Throwable t) {
+                        Log.e(TAG, "init(worker) failed", t);
+                        setLastEvent("init_error", null, String.valueOf(t.getMessage()), null);
+                    }
+                }
+            });
             registerLifecycleCallbacks();
             return 1;
         } catch (Throwable t) {
@@ -321,14 +319,29 @@ public class AdiveryGM {
 
     public static double adivery_callbacks_enable(double enable) {
         callbacksEnabled = enable != 0;
-        ensureGlobalListener(callbacksEnabled);
+        worker.execute(new Runnable() {
+            @Override public void run() {
+                ensureGlobalListener(callbacksEnabled);
+            }
+        });
         return 1;
     }
 
     public static double adivery_prepare_interstitial(String placementId) {
         try {
-            attachPerPlacementListener(placementId);
-            invokeAdivery("prepareInterstitialAd", new Class[]{Context.class, String.class}, getContext(), placementId);
+            if (!allowPrepare(placementId)) return 1;
+            final String pid = placementId;
+            worker.execute(new Runnable() {
+                @Override public void run() {
+                    try {
+                        attachPerPlacementListener(pid);
+                        invokeAdivery("prepareInterstitialAd", new Class[]{Context.class, String.class}, getContext(), pid);
+                    } catch (Throwable t) {
+                        Log.e(TAG, "prepare_interstitial(worker) failed", t);
+                        setLastEvent("prepare_interstitial_error", pid, String.valueOf(t.getMessage()), null);
+                    }
+                }
+            });
             return 1;
         } catch (Throwable t) {
             Log.e(TAG, "prepare_interstitial failed", t);
@@ -338,16 +351,19 @@ public class AdiveryGM {
 
     public static double adivery_prepare_rewarded(String placementId) {
         try {
-            Log.d(TAG, "prepare_rewarded: start, placement=" + placementId);
-            // Emit GM async event for debug
-            try { setLastEvent("prepare_rewarded_start", placementId, null, null); } catch (Throwable ignored) {}
-            Context ctx = getContext();
-            Log.d(TAG, "prepare_rewarded: got context=" + (ctx == null ? "null" : ctx.getClass().getName()));
-            try { setLastEvent("prepare_rewarded_got_context", placementId, (ctx == null ? "null" : ctx.getClass().getName()), null); } catch (Throwable ignored) {}
-            // Invoke SDK
-            invokeAdivery("prepareRewardedAd", new Class[]{Context.class, String.class}, ctx, placementId);
-            Log.d(TAG, "prepare_rewarded: invoked SDK, awaiting callbacks");
-            try { setLastEvent("prepare_rewarded_invoked", placementId, null, null); } catch (Throwable ignored) {}
+            if (!allowPrepare(placementId)) return 1;
+            final String pid = placementId;
+            worker.execute(new Runnable() {
+                @Override public void run() {
+                    try {
+                        Context ctx = getContext();
+                        invokeAdivery("prepareRewardedAd", new Class[]{Context.class, String.class}, ctx, pid);
+                    } catch (Throwable t) {
+                        Log.e(TAG, "prepare_rewarded(worker) failed", t);
+                        setLastEvent("prepare_rewarded_error", pid, String.valueOf(t.getMessage()), null);
+                    }
+                }
+            });
             return 1;
         } catch (Throwable t) {
             Log.e(TAG, "prepare_rewarded: failed for placement=" + placementId, t);
@@ -358,12 +374,33 @@ public class AdiveryGM {
 
     public static double adivery_prepare_app_open(String placementId) {
         try {
-            invokeAdivery("prepareAppOpenAd", new Class[]{Activity.class, String.class}, getActivity(), placementId);
+            if (!allowPrepare(placementId)) return 1;
+            final String pid = placementId;
+            worker.execute(new Runnable() {
+                @Override public void run() {
+                    try {
+                        invokeAdivery("prepareAppOpenAd", new Class[]{Activity.class, String.class}, getActivity(), pid);
+                    } catch (Throwable t) {
+                        Log.e(TAG, "prepare_app_open(worker) failed", t);
+                        setLastEvent("prepare_app_open_error", pid, String.valueOf(t.getMessage()), null);
+                    }
+                }
+            });
             return 1;
         } catch (Throwable t) {
             Log.e(TAG, "prepare_app_open failed", t);
             return 0;
         }
+    }
+
+    private static synchronized boolean allowPrepare(String placementId) {
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (placementId != null && placementId.equals(lastPreparePlacement) && (now - lastPrepareTimeMs) < 1500) {
+            return false;
+        }
+        lastPreparePlacement = placementId;
+        lastPrepareTimeMs = now;
+        return true;
     }
 
     public static double adivery_show(String placementId) {
@@ -453,8 +490,13 @@ public class AdiveryGM {
     }
 
     public static String adivery_get_last_event() {
-        String le = lastEvent;
-        lastEvent = "";
+        String le = eventQueue.poll();
+        if (le == null) {
+            le = lastEvent;
+            lastEvent = "";
+        } else if (le.equals(lastEvent)) {
+            lastEvent = "";
+        }
         return le == null ? "" : le;
     }
 

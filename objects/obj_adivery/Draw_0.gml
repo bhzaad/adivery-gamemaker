@@ -1,9 +1,9 @@
-// On-screen diagnostics for Adivery
 var x0 = 16; var y0 = 16; var dy = 18;
+
 draw_set_color(c_white);
-draw_text(x0, y0,    "Interstitial ready: " + string(adivery_is_loaded(global.adivery_placement_interstitial))); y0 += dy;
-draw_text(x0, y0,    "Rewarded ready: " + string(adivery_is_loaded(global.adivery_placement_rewarded))); y0 += dy;
-draw_text(x0, y0,    "VAST ready: " + string(adivery_is_vast_ready())); y0 += dy;
+draw_text(x0, y0,    "Interstitial ready: " + string(adivery_interstitial_ready)); y0 += dy;
+draw_text(x0, y0,    "Rewarded ready: " + string(adivery_rewarded_ready)); y0 += dy;
+draw_text(x0, y0,    "VAST ready: " + string(adivery_vast_ready)); y0 += dy;
 draw_text(x0, y0,    "Last event: " + string(global.adivery_last_event)); y0 += dy;
 
 // Simple buttons to show ads
@@ -39,7 +39,8 @@ draw_text(bh_x1 + 8, bh_y1 + 6, "App Open"); // Hide Banner
 // Click handling (room-space coordinates)
 if (mouse_check_button_pressed(mb_left)) {
     if (point_in_rectangle(mouse_x, mouse_y, i_x1, i_y1, i_x2, i_y2)) {
-        if (adivery_is_loaded(global.adivery_placement_interstitial) == 1) {
+        adivery_interstitial_ready = adivery_is_loaded(global.adivery_placement_interstitial);
+        if (adivery_interstitial_ready == 1) {
             adivery_show(global.adivery_placement_interstitial);
         } else {
             show_debug_message("Adivery: interstitial not ready");
@@ -47,7 +48,8 @@ if (mouse_check_button_pressed(mb_left)) {
         }
     }
     if (point_in_rectangle(mouse_x, mouse_y, r_x1, r_y1, r_x2, r_y2)) {
-        if (adivery_is_loaded(global.adivery_placement_rewarded) == 1) {
+        adivery_rewarded_ready = adivery_is_loaded(global.adivery_placement_rewarded);
+        if (adivery_rewarded_ready == 1) {
             adivery_show(global.adivery_placement_rewarded);
         } else {
             show_debug_message("Adivery: rewarded not ready");

@@ -40,7 +40,7 @@
         {"$GMExtensionFunction":"","%Name":"adivery_banner_hide","argCount":-1,"args":[],"documentation":"","externalName":"adivery_banner_hide","help":"adivery_banner_hide()","hidden":false,"kind":11,"name":"adivery_banner_hide","resourceType":"GMExtensionFunction","resourceVersion":"2.0","returnType":2,},
       ],"init":"","kind":4,"name":"","origname":"extensions\\Adivery\\adivery.ext","ProxyFiles":[],"resourceType":"GMExtensionFile","resourceVersion":"2.0","uncompress":false,"usesRunnerInterface":false,},
   ],
-  "gradleinject":"implementation fileTree(dir: 'libs', include: ['*.jar','*.aar'])\nimplementation 'org.jetbrains.kotlin:kotlin-stdlib:1.6.21'",
+  "gradleinject":"implementation 'com.adivery:sdk:4.8.8'",
   "hasConvertedCodeInjection":true,
   "helpfile":"",
   "HTML5CodeInjection":"",

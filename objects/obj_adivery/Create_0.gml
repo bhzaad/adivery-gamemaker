@@ -1,8 +1,7 @@
 /// @descr Adivery init
-// Disable verbose SDK logging for runtime builds
-adivery_set_logging(1);
-adivery_callbacks_enable(1);
-adivery_enable_logcat_reward_fallback(1); // Optional: enable debug-only logcat fallback to detect reward via SDK logs
+// Keep SDK logging and logcat scanning off during normal runtime.
+adivery_set_logging(0);
+adivery_enable_logcat_reward_fallback(0);
 
 
 // Set your IDs here
@@ -14,16 +13,22 @@ global.adivery_placement_appopen = "f83ece42-78b8-4bc9-a341-98ba02b0578d";
 
 // Configure SDK
 adivery_init(global.adivery_app_id);
+adivery_callbacks_enable(1);
 
 // Prepare ads
 //adivery_prepare_interstitial(global.adivery_placement_interstitial);
-// Extra debug visibility for rewarded prepare flow
-show_debug_message("Adivery: preparing rewarded start -> " + string(global.adivery_placement_rewarded));
 adivery_prepare_rewarded(global.adivery_placement_rewarded);
-show_debug_message("Adivery: preparing rewarded invoked");
 
 // State
 shown_interstitial = false;
 shown_rewarded = false;
 shown_appopen = false;
 global.adivery_last_event = "";
+adivery_interstitial_ready = 0;
+adivery_rewarded_ready = 0;
+adivery_vast_ready = 0;
+adivery_last_event_poll = -1000000;
+adivery_event_poll_interval = 250;
+
+// onRewarded rewards callback
+reward = function() {};

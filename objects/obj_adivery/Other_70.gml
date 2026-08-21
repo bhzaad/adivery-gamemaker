@@ -15,23 +15,10 @@ if (!is_undefined(_map)) {
             + ";rewarded=" + string(_rewarded)
             + ";message=" + string(_message);
 
-        // Generic log of every Adivery event
-        show_debug_message("Adivery async: " + global.adivery_last_event);
-
-        // Extra-friendly logs for rewarded video prepare & callbacks
         var _type = string(_ev);
         var _is_rewarded_placement = (_placement == string(global.adivery_placement_rewarded));
 
-        if (string_pos("prepare_rewarded_start", _type) > 0) {
-            show_debug_message("Adivery: Rewarded prepare START -> " + _placement);
-        }
-        if (string_pos("prepare_rewarded_got_context", _type) > 0) {
-            show_debug_message("Adivery: Rewarded got context -> " + _message);
-        }
-        if (string_pos("prepare_rewarded_invoked", _type) > 0) {
-            show_debug_message("Adivery: Rewarded prepare INVOKED");
-        }
-        if (string_pos("prepare_rewarded_error", _type) > 0) {
+        if (_type == "prepare_rewarded_error") {
             show_debug_message("Adivery: Rewarded prepare ERROR -> " + _message);
         }
 
@@ -41,7 +28,7 @@ if (!is_undefined(_map)) {
             if (_type == "onAdShown") show_debug_message("Adivery: Rewarded SHOWN");
             if (_type == "onAdClosed") show_debug_message("Adivery: Rewarded CLOSED");
             if (_type == "onAdError") show_debug_message("Adivery: Rewarded ERROR -> " + _message);
-            if (_type == "onRewarded") show_message_async("Thanks! Your reward has been granted.");
+            if (_type == "onRewarded") { reward(); }
         }
     }
 }
